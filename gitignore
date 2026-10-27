@@ -1,0 +1,78 @@
+# Dependencies (frontend and backend)
+node_modules/
+
+# Build outputs
+/dist/
+/build/
+/out/
+**/dist/
+**/build/
+**/out/
+*.tsbuildinfo
+
+# Test coverage and reports
+coverage/
+.nyc_output/
+*.lcov
+playwright-report/
+test-results/
+
+# Logs and runtime files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.pid
+*.pid.lock
+report.*.*.*.*.json
+
+# Environment variables and secrets
+.env
+*.pem
+*.key
+
+# Local caches and temporary files
+.cache/
+.parcel-cache/
+.vite/
+.eslintcache
+.stylelintcache
+.turbo/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Local IDE and OS files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+
+**/src/generated/prisma/
+**/generated/prisma/
+
+docker-compose.override.yml
+compose.override.yml

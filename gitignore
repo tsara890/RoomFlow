@@ -76,3 +76,5 @@ Desktop.ini
 
 docker-compose.override.yml
 compose.override.yml
+
+*.txt

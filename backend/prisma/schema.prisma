@@ -23,38 +23,38 @@ enum ReservationStatus {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  name         String
-  email        String        @unique
-  role         UserRole      @default(USER)
-  createdAt    DateTime      @default(now())
+  id String @id @default(dbgenerated("gen_random_uuid()"))
+  name String
+  email String @unique
+  role UserRole @default(USER)
+  createdAt DateTime @default(now())
 
   reservations Reservation[]
 }
 
 model Room {
-  id           String        @id @default(uuid())
-  name         String
-  building     String
-  floor        Int
-  capacity     Int
-  equipment    String?
-  isActive     Boolean       @default(true)
+  id String @id @default(dbgenerated("gen_random_uuid()"))
+  name String
+  building String
+  floor Int
+  capacity Int
+  equipment String?
+  isActive Boolean @default(true)
 
   reservations Reservation[]
 }
 
 model Reservation {
-  id         String            @id @default(uuid())
-  userId     String
-  roomId     String
-  startTime  DateTime
-  endTime    DateTime
-  purpose    String?
-  status     ReservationStatus @default(PENDING)
-  isSpecial  Boolean           @default(false)
-  createdAt  DateTime          @default(now())
+  id String @id @default(dbgenerated("gen_random_uuid()"))
+  userId String
+  roomId String
+  startTime DateTime
+  endTime DateTime
+  purpose String?
+  status ReservationStatus @default(PENDING)
+  isSpecial Boolean @default(false)
+  createdAt DateTime @default(now())
 
-  user       User              @relation(fields: [userId], references: [id])
-  room       Room              @relation(fields: [roomId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
 }

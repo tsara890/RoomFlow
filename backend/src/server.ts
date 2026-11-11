@@ -38,6 +38,35 @@ app.get("/health", async (_req, res) => {
   }
 });
 
+app.get("/rooms", async (_req, res) => {
+  try {
+    const rooms = await prisma.room.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+        building: true,
+        floor: true,
+        capacity: true,
+        equipment: true,
+      },
+    });
+
+    res.json(rooms);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Napaka pri pridobivanju sob",
+    });
+  }
+});
+
+
 app.listen(port, () => {
   console.log(`RoomFlow API: http://localhost:${port}`);
 });

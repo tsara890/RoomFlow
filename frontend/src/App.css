@@ -94,3 +94,36 @@ button:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+.reservation-section {
+  margin-top: 35px;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.reservation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 500px;
+}
+
+.reservation-form button {
+  align-self: flex-start;
+}
+
+.reservation-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reservation-form p {
+  padding: 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+

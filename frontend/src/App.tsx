@@ -42,9 +42,15 @@ function App() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
-
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [reservationsError, setReservationsError] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editPurpose, setEditPurpose] = useState("");
+  const [manageMessage, setManageMessage] = useState("");
+  const [managing, setManaging] = useState(false);
 
   const userId = import.meta.env.VITE_TEST_USER_ID;
 
@@ -195,6 +201,110 @@ function App() {
     }
   }
 
+
+function startEditing(reservation: Reservation) {
+  setEditingId(reservation.id);
+
+  // Pretvorba datuma v obliko za datetime-local
+  const toLocalInput = (value: string) => {
+    const date = new Date(value);
+    const offset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - offset)
+      .toISOString()
+      .slice(0, 16);
+  };
+
+  setEditStart(toLocalInput(reservation.startTime));
+  setEditEnd(toLocalInput(reservation.endTime));
+  setEditPurpose(reservation.purpose ?? "");
+  setManageMessage("");
+}
+
+async function saveChanges(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+
+  if (!editingId || !userId) return;
+
+  if (new Date(editStart) >= new Date(editEnd)) {
+    setManageMessage("Končni čas mora biti poznejši od začetnega.");
+    return;
+  }
+
+  setManaging(true);
+  setManageMessage("");
+
+  try {
+    const response = await fetch(
+      `${API_URL}/reservations/${editingId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          start: new Date(editStart).toISOString(),
+          end: new Date(editEnd).toISOString(),
+          purpose: editPurpose,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Urejanje ni uspelo.");
+    }
+
+    setEditingId(null);
+    setManageMessage("Rezervacija je uspešno posodobljena.");
+    await loadReservations();
+  } catch (error) {
+    setManageMessage(
+      error instanceof Error ? error.message : "Prišlo je do napake."
+    );
+  } finally {
+    setManaging(false);
+  }
+}
+
+  async function cancelReservation(id: string) {
+    if (!userId || managing) return;
+
+    if (!window.confirm("Ali res želiš preklicati rezervacijo?")) {
+      return;
+    }
+
+    setManaging(true);
+    setManageMessage("");
+
+    try {
+      const response = await fetch(
+        `${API_URL}/reservations/${id}/cancel`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Preklic ni uspel.");
+      }
+
+      setEditingId(null);
+      setManageMessage("Rezervacija je uspešno preklicana.");
+      await loadReservations();
+    } catch (error) {
+      setManageMessage(
+        error instanceof Error ? error.message : "Prišlo je do napake."
+      );
+    } finally {
+      setManaging(false);
+    }
+  }
+
   return (
     <div className="container">
       <header>
@@ -339,12 +449,15 @@ function App() {
           {message && <p role="status">{message}</p>}
         </form>
       </section>
-
       <section className="reservation-section">
         <h2>Moje rezervacije</h2>
 
         {reservationsError && (
           <p className="error">{reservationsError}</p>
+        )}
+
+        {manageMessage && (
+          <p role="status">{manageMessage}</p>
         )}
 
         {reservations.length === 0 && !reservationsError && (
@@ -356,32 +469,89 @@ function App() {
             <article className="room-card" key={reservation.id}>
               <h3>{reservation.room.name}</h3>
 
-              <p>
-                <strong>Stavba:</strong> {reservation.room.building}
-              </p>
-
+              <p><strong>Stavba:</strong> {reservation.room.building}</p>
               <p>
                 <strong>Začetek:</strong>{" "}
                 {new Date(reservation.startTime).toLocaleString("sl-SI")}
               </p>
-
               <p>
                 <strong>Konec:</strong>{" "}
                 {new Date(reservation.endTime).toLocaleString("sl-SI")}
               </p>
-
               <p>
-                <strong>Namen:</strong>{" "}
-                {reservation.purpose || "Ni naveden"}
+                <strong>Namen:</strong> {reservation.purpose || "Ni naveden"}
               </p>
+              <p><strong>Status:</strong> {reservation.status}</p>
 
-              <p>
-                <strong>Status:</strong> {reservation.status}
-              </p>
+              {reservation.status === "CONFIRMED" && (
+                <div className="reservation-actions">
+                  <button
+                    onClick={() => startEditing(reservation)}
+                    disabled={managing}
+                  >
+                    Uredi
+                  </button>
+
+                  <button
+                    className="cancel-button"
+                    onClick={() => cancelReservation(reservation.id)}
+                    disabled={managing}
+                  >
+                    Prekliči
+                  </button>
+                </div>
+              )}
+
+              {editingId === reservation.id && (
+                <form onSubmit={saveChanges} className="edit-form">
+                  <label>
+                    Začetek
+                    <input
+                      type="datetime-local"
+                      value={editStart}
+                      onChange={(e) => setEditStart(e.target.value)}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Konec
+                    <input
+                      type="datetime-local"
+                      value={editEnd}
+                      onChange={(e) => setEditEnd(e.target.value)}
+                      required
+                    />
+                  </label>
+
+                  <label>
+                    Namen
+                    <input
+                      type="text"
+                      value={editPurpose}
+                      onChange={(e) => setEditPurpose(e.target.value)}
+                    />
+                  </label>
+
+                  <button type="submit" disabled={managing}>
+                    {managing ? "Shranjevanje ..." : "Shrani spremembe"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => setEditingId(null)}
+                    disabled={managing}
+                  >
+                    Zapri
+                  </button>
+                </form>
+              )}
             </article>
           ))}
         </div>
       </section>
+
     </div>
   );
 }

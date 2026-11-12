@@ -127,3 +127,43 @@ button:hover {
   overflow-wrap: anywhere;
 }
 
+
+.reservation-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cancel-button {
+  background: #dc2626;
+}
+
+.cancel-button:hover {
+  background: #b91c1c;
+}
+
+.secondary-button {
+  background: #64748b;
+}
+
+.secondary-button:hover {
+  background: #475569;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.edit-form button {
+  width: 100%;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

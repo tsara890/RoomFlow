@@ -131,6 +131,118 @@ app.get("/rooms/:id/availability", async (req, res) => {
   }
 });
 
+
+app.post("/reservations", async (req, res) => {
+  try {
+    const { userId, roomId, start, end, purpose } = req.body;
+
+    // Preverjanje obveznih podatkov
+    if (
+      typeof userId !== "string" ||
+      typeof roomId !== "string" ||
+      typeof start !== "string" ||
+      typeof end !== "string" ||
+      (purpose !== undefined && typeof purpose !== "string")
+    ) {
+      return res.status(400).json({
+        error: "Manjkajo ali so neveljavni podatki.",
+      });
+    }
+
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+
+    if (
+      isNaN(startTime.getTime()) ||
+      isNaN(endTime.getTime()) ||
+      startTime >= endTime
+    ) {
+      return res.status(400).json({
+        error: "Neveljaven časovni interval.",
+      });
+    }
+
+    // Preverjanje uporabnika in sobe
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const room = await prisma.room.findFirst({
+      where: { id: roomId, isActive: true },
+    });
+
+    if (!user || !room) {
+      return res.status(404).json({
+        error: "Uporabnik ali soba ne obstaja.",
+      });
+    }
+
+    // Preverjanje razpoložljivosti in shranjevanje
+    const reservation = await prisma.$transaction(
+      async (tx) => {
+        const conflicts = await tx.reservation.count({
+          where: {
+            roomId,
+            status: "CONFIRMED",
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+
+        const blocked = await tx.blockedSlot.count({
+          where: {
+            roomId,
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+
+        if (conflicts > 0 || blocked > 0) {
+          throw new Error("SLOT_TAKEN");
+        }
+
+        return tx.reservation.create({
+          data: {
+            userId,
+            roomId,
+            startTime,
+            endTime,
+            purpose: purpose ?? null,
+            status: "CONFIRMED",
+          },
+        });
+      },
+      { isolationLevel: "Serializable" }
+    );
+
+    return res.status(201).json(reservation);
+
+  } catch (error) {
+    if (error instanceof Error && error.message === "SLOT_TAKEN") {
+      return res.status(409).json({
+        error: "Soba je v izbranem terminu zasedena.",
+      });
+    }
+
+    // Morebiten konflikt sočasnih transakcij
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2034"
+    ) {
+      return res.status(409).json({
+        error: "Termin je treba ponovno preveriti. Poskusi znova.",
+      });
+    }
+
+    console.error(error);
+    return res.status(500).json({
+      error: "Napaka pri ustvarjanju rezervacije.",
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`RoomFlow API: http://localhost:${port}`);
 });

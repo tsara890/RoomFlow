@@ -40,6 +40,7 @@ model Room {
   capacity Int
   equipment String?
   isActive Boolean @default(true)
+  blockedSlots BlockedSlot[]
 
   reservations Reservation[]
 }
@@ -58,3 +59,13 @@ model Reservation {
   user User @relation(fields: [userId], references: [id])
   room Room @relation(fields: [roomId], references: [id])
 }
+
+model BlockedSlot {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  roomId    String
+  startTime DateTime
+  endTime   DateTime
+
+  room      Room     @relation(fields: [roomId], references: [id])
+}
+

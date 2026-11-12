@@ -30,6 +30,8 @@ report.*.*.*.*.json
 
 # Environment variables and secrets
 .env
+.env.local
+*.local
 **/.env
 *.pem
 *.key

@@ -67,6 +67,70 @@ app.get("/rooms", async (_req, res) => {
 });
 
 
+app.get("/rooms/:id/availability", async (req, res) => {
+  try {
+    const roomId = String(req.params.id);
+    const { start, end } = req.query;
+
+    if (typeof start !== "string" || typeof end !== "string") {
+      return res.status(400).json({
+        error: "Podati moraš začetni in končni čas.",
+      });
+    }
+
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+
+    if (
+      isNaN(startTime.getTime()) ||
+      isNaN(endTime.getTime()) ||
+      startTime >= endTime
+    ) {
+      return res.status(400).json({
+        error: "Neveljaven časovni interval.",
+      });
+    }
+
+    const room = await prisma.room.findFirst({
+      where: { id: roomId, isActive: true },
+    });
+
+    if (!room) {
+      return res.status(404).json({
+        error: "Soba ne obstaja ali ni aktivna.",
+      });
+    }
+
+    const reservations = await prisma.reservation.count({
+      where: {
+        roomId,
+        status: "CONFIRMED",
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+
+    const blockedSlots = await prisma.blockedSlot.count({
+      where: {
+        roomId,
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+
+    res.json({
+      roomId,
+      available: reservations === 0 && blockedSlots === 0,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Napaka pri preverjanju razpoložljivosti.",
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`RoomFlow API: http://localhost:${port}`);
 });

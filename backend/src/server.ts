@@ -282,6 +282,150 @@ app.get("/users/:userId/reservations", async (req, res) => {
   }
 });
 
+
+app.patch("/reservations/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const { userId, start, end, purpose } = req.body;
+
+    if (
+      typeof userId !== "string" ||
+      typeof start !== "string" ||
+      typeof end !== "string" ||
+      typeof purpose !== "string"
+    ) {
+      return res.status(400).json({
+        error: "Neveljavni podatki.",
+      });
+    }
+
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+
+    if (
+      isNaN(startTime.getTime()) ||
+      isNaN(endTime.getTime()) ||
+      startTime >= endTime
+    ) {
+      return res.status(400).json({
+        error: "Neveljaven časovni interval.",
+      });
+    }
+
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        const reservation = await tx.reservation.findFirst({
+          where: { id, userId, status: "CONFIRMED" },
+        });
+
+        if (!reservation) {
+          throw new Error("NOT_FOUND");
+        }
+
+        const conflicts = await tx.reservation.count({
+          where: {
+            id: { not: id },
+            roomId: reservation.roomId,
+            status: "CONFIRMED",
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+
+        const blocked = await tx.blockedSlot.count({
+          where: {
+            roomId: reservation.roomId,
+            startTime: { lt: endTime },
+            endTime: { gt: startTime },
+          },
+        });
+
+        if (conflicts > 0 || blocked > 0) {
+          throw new Error("SLOT_TAKEN");
+        }
+
+        return tx.reservation.update({
+          where: { id },
+          data: { startTime, endTime, purpose },
+        });
+      },
+      { isolationLevel: "Serializable" }
+    );
+
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "NOT_FOUND") {
+        return res.status(404).json({
+          error: "Aktivna rezervacija ne obstaja.",
+        });
+      }
+
+      if (error.message === "SLOT_TAKEN") {
+        return res.status(409).json({
+          error: "Soba je v izbranem terminu zasedena.",
+        });
+      }
+    }
+
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2034"
+    ) {
+      return res.status(409).json({
+        error: "Konflikt pri shranjevanju. Poskusi znova.",
+      });
+    }
+
+    console.error(error);
+    return res.status(500).json({
+      error: "Napaka pri urejanju rezervacije.",
+    });
+  }
+});
+
+
+app.patch("/reservations/:id/cancel", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const { userId } = req.body;
+
+    if (typeof userId !== "string") {
+      return res.status(400).json({
+        error: "Manjka ID uporabnika.",
+      });
+    }
+
+    const result = await prisma.reservation.updateMany({
+      where: {
+        id,
+        userId,
+        status: "CONFIRMED",
+      },
+      data: {
+        status: "CANCELLED",
+      },
+    });
+
+    if (result.count === 0) {
+      return res.status(404).json({
+        error: "Aktivna rezervacija ne obstaja.",
+      });
+    }
+
+    return res.json({
+      message: "Rezervacija je preklicana.",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      error: "Napaka pri preklicu rezervacije.",
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`RoomFlow API: http://localhost:${port}`);
 });

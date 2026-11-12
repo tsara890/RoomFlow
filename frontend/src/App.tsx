@@ -11,6 +11,19 @@ type Room = {
   equipment: string | null;
 };
 
+type Reservation = {
+  id: string;
+  roomId: string;
+  startTime: string;
+  endTime: string;
+  purpose: string | null;
+  status: string;
+  room: {
+    name: string;
+    building: string;
+  };
+};
+
 const API_URL = "http://localhost:3000";
 
 function App() {
@@ -29,7 +42,45 @@ function App() {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
 
+
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [reservationsError, setReservationsError] = useState("");
+
   const userId = import.meta.env.VITE_TEST_USER_ID;
+
+  async function loadReservations() {
+    if (!userId) return;
+
+    try {
+      const response = await fetch(
+        `${API_URL}/users/${userId}/reservations`
+      );
+
+      if (!response.ok) {
+        throw new Error("Pridobivanje rezervacij ni uspelo.");
+      }
+
+      const data: Reservation[] = await response.json();
+      setReservations(data);
+      setReservationsError("");
+    } catch {
+      setReservationsError("Napaka pri nalaganju rezervacij.");
+    }
+  }
+
+  useEffect(() => {
+    if (!userId) return;
+
+    fetch(`${API_URL}/users/${userId}/reservations`)
+      .then((response) => {
+        if (!response.ok) throw new Error();
+        return response.json();
+      })
+      .then((data: Reservation[]) => setReservations(data))
+      .catch(() =>
+        setReservationsError("Napaka pri nalaganju rezervacij.")
+      );
+  }, [userId]);
 
   useEffect(() => {
     fetch(`${API_URL}/rooms`)
@@ -133,6 +184,7 @@ function App() {
       setStart("");
       setEnd("");
       setPurpose("");
+      await loadReservations();
 
     } catch (err) {
       setMessage(
@@ -286,6 +338,49 @@ function App() {
 
           {message && <p role="status">{message}</p>}
         </form>
+      </section>
+
+      <section className="reservation-section">
+        <h2>Moje rezervacije</h2>
+
+        {reservationsError && (
+          <p className="error">{reservationsError}</p>
+        )}
+
+        {reservations.length === 0 && !reservationsError && (
+          <p>Trenutno nimaš rezervacij.</p>
+        )}
+
+        <div className="room-grid">
+          {reservations.map((reservation) => (
+            <article className="room-card" key={reservation.id}>
+              <h3>{reservation.room.name}</h3>
+
+              <p>
+                <strong>Stavba:</strong> {reservation.room.building}
+              </p>
+
+              <p>
+                <strong>Začetek:</strong>{" "}
+                {new Date(reservation.startTime).toLocaleString("sl-SI")}
+              </p>
+
+              <p>
+                <strong>Konec:</strong>{" "}
+                {new Date(reservation.endTime).toLocaleString("sl-SI")}
+              </p>
+
+              <p>
+                <strong>Namen:</strong>{" "}
+                {reservation.purpose || "Ni naveden"}
+              </p>
+
+              <p>
+                <strong>Status:</strong> {reservation.status}
+              </p>
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );

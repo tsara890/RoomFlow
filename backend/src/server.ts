@@ -243,6 +243,45 @@ app.post("/reservations", async (req, res) => {
   }
 });
 
+
+app.get("/users/:userId/reservations", async (req, res) => {
+  try {
+    const userId = String(req.params.userId);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: "Uporabnik ne obstaja.",
+      });
+    }
+
+    const reservations = await prisma.reservation.findMany({
+      where: { userId },
+      include: {
+        room: {
+          select: {
+            name: true,
+            building: true,
+          },
+        },
+      },
+      orderBy: {
+        startTime: "asc",
+      },
+    });
+
+    res.json(reservations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Napaka pri pridobivanju rezervacij.",
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`RoomFlow API: http://localhost:${port}`);
 });
